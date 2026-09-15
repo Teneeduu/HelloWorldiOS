@@ -34,7 +34,7 @@ struct ContentView: View {
                 Spacer()
 
                 Button {
-                    showPlayer = true
+                    library.toggle()
                 } label: {
                     Label(library.isPlaying ? "正在播放" : "播放音乐", systemImage: library.isPlaying ? "waveform" : "music.note")
                         .padding(.horizontal, 20)
@@ -42,8 +42,27 @@ struct ContentView: View {
                         .background(.ultraThinMaterial, in: Capsule())
                 }
                 .foregroundStyle(.white)
+                .disabled(library.tracks.isEmpty)
                 .padding(.bottom, 48)
             }
+
+            VStack {
+                HStack {
+                    Spacer()
+                    Button {
+                        showPlayer = true
+                    } label: {
+                        Image(systemName: "gearshape.fill")
+                            .font(.title2)
+                            .padding(10)
+                            .background(.ultraThinMaterial, in: Circle())
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.trailing, 16)
+                }
+                Spacer()
+            }
+            .padding(.top, 8)
         }
         .onAppear {
             withAnimation(.easeInOut(duration: 2.2).repeatForever(autoreverses: true)) {

@@ -15,7 +15,6 @@ final class MusicLibrary: NSObject, ObservableObject, AVAudioPlayerDelegate {
 
     private var player: AVAudioPlayer?
     private let orderKey = "musicLibrary.order"
-    private let addedFilesKey = "musicLibrary.addedFiles"
     private let audioExtensions = ["mp3", "m4a", "wav", "aac"]
 
     override init() {
@@ -29,6 +28,12 @@ final class MusicLibrary: NSObject, ObservableObject, AVAudioPlayerDelegate {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
     }
 
+    /// Re-scans bundled tracks and the Documents folder (which picks up files dropped in
+    /// either through the in-app picker or through the computer's file-sharing pane).
+    func refresh() {
+        reload()
+    }
+
     private func reload() {
         var bundled: [Track] = []
         for ext in audioExtensions {
@@ -40,13 +45,11 @@ final class MusicLibrary: NSObject, ObservableObject, AVAudioPlayerDelegate {
         bundled.sort { $0.title < $1.title }
 
         var added: [Track] = []
-        let addedNames = UserDefaults.standard.stringArray(forKey: addedFilesKey) ?? []
-        for name in addedNames {
-            let url = documentsURL.appendingPathComponent(name)
-            if FileManager.default.fileExists(atPath: url.path) {
-                added.append(Track(id: "added:\(name)", title: url.deletingPathExtension().lastPathComponent, url: url, isBundled: false))
-            }
+        let contents = (try? FileManager.default.contentsOfDirectory(at: documentsURL, includingPropertiesForKeys: nil)) ?? []
+        for url in contents where audioExtensions.contains(url.pathExtension.lowercased()) {
+            added.append(Track(id: "added:\(url.lastPathComponent)", title: url.deletingPathExtension().lastPathComponent, url: url, isBundled: false))
         }
+        added.sort { $0.title < $1.title }
 
         var all = bundled + added
 
@@ -81,11 +84,6 @@ final class MusicLibrary: NSObject, ObservableObject, AVAudioPlayerDelegate {
                 try FileManager.default.removeItem(at: destURL)
             }
             try FileManager.default.copyItem(at: sourceURL, to: destURL)
-            var names = UserDefaults.standard.stringArray(forKey: addedFilesKey) ?? []
-            if !names.contains(name) {
-                names.append(name)
-                UserDefaults.standard.set(names, forKey: addedFilesKey)
-            }
             reload()
         } catch {
             print("Failed to add file \(name): \(error)")
@@ -96,9 +94,6 @@ final class MusicLibrary: NSObject, ObservableObject, AVAudioPlayerDelegate {
         tracks.removeAll { $0.id == track.id }
         persistOrder()
         if !track.isBundled {
-            var names = UserDefaults.standard.stringArray(forKey: addedFilesKey) ?? []
-            names.removeAll { $0 == track.url.lastPathComponent }
-            UserDefaults.standard.set(names, forKey: addedFilesKey)
             try? FileManager.default.removeItem(at: track.url)
         }
         if currentTrackID == track.id {

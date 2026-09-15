@@ -8,10 +8,14 @@ struct PlayerView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
+                computerUploadHint
+
                 if library.tracks.isEmpty {
                     Spacer()
-                    Text("还没有歌曲，点右上角 + 添加")
+                    Text("还没有歌曲，点右上角 + 从手机添加，或看上面的说明从电脑添加")
+                        .multilineTextAlignment(.center)
                         .foregroundStyle(.secondary)
+                        .padding(.horizontal, 32)
                     Spacer()
                 } else {
                     List {
@@ -45,7 +49,7 @@ struct PlayerView: View {
 
                 controls
             }
-            .navigationTitle("播放列表")
+            .navigationTitle("设置")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -56,6 +60,11 @@ struct PlayerView: View {
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        library.refresh()
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
+                    }
                     EditButton()
                 }
             }
@@ -70,6 +79,23 @@ struct PlayerView: View {
                 }
             }
         }
+    }
+
+    private var computerUploadHint: some View {
+        DisclosureGroup("从电脑上传歌曲") {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("1. 手机连电脑（数据线，或配好 AltServer 后同一 WiFi）")
+                Text("2. 电脑上打开 Finder / iTunes / “Apple 设备”App，找到 HelloWorld 这个 App 的文件共享")
+                Text("3. 把 mp3 / m4a / wav 文件直接拖进去")
+                Text("4. 回到这里点右上角 ↻ 刷新，新歌就会出现在下面的列表里")
+            }
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .padding(.top, 4)
+        }
+        .padding(.horizontal)
+        .padding(.top, 12)
+        .padding(.bottom, 4)
     }
 
     private var controls: some View {
