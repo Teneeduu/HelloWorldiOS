@@ -43,3 +43,44 @@ jobs:
         with:
           name: HelloWorld-unsigned-ipa
           path: HelloWorld-unsigned.ipa
+
+  simulator-screenshot:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select latest Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build for simulator
+        run: |
+          xcodebuild \
+            -project HelloWorld.xcodeproj \
+            -scheme HelloWorld \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -derivedDataPath build \
+            -destination "generic/platform=iOS Simulator" \
+            build
+
+      - name: Boot simulator, install app, take screenshot
+        run: |
+          DEVICE_ID=$(xcrun simctl create "HelloWorld-Preview" "iPhone 16")
+          xcrun simctl boot "$DEVICE_ID"
+          xcrun simctl bootstatus "$DEVICE_ID" -b
+          xcrun simctl install "$DEVICE_ID" build/Build/Products/Debug-iphonesimulator/HelloWorld.app
+          xcrun simctl launch "$DEVICE_ID" com.example.helloworld
+          sleep 3
+          xcrun simctl io "$DEVICE_ID" screenshot screenshot.png
+
+      - name: Upload screenshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: HelloWorld-simulator-screenshot
+          path: screenshot.png
