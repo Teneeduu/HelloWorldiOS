@@ -7,7 +7,7 @@ targets:
   HelloWorld:
     type: application
     platform: iOS
-    sources: [Sources]
+    sources: [Sources, Resources]
     info:
       path: Info.plist
       properties:
