@@ -9,6 +9,7 @@ targets:
     platform: iOS
     sources: [Sources]
     info:
+      path: Info.plist
       properties:
         CFBundleDisplayName: HelloWorld
         UILaunchScreen: {}
