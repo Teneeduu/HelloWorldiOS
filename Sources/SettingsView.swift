@@ -4,12 +4,15 @@ import UniformTypeIdentifiers
 struct SettingsView: View {
     @ObservedObject var library: MusicLibrary
     @ObservedObject var slideshow: PhotoSlideshow
+    @ObservedObject var quotes: QuoteLibrary
+    @ObservedObject var reminders: QuoteReminders
     @State private var isImporting = false
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
                 List {
+                    quoteSection
                     photoSection
                     trackSection
                     helpSection
@@ -30,6 +33,7 @@ struct SettingsView: View {
                     Button {
                         library.refresh()
                         slideshow.refresh()
+                        quotes.reload()
                     } label: {
                         Image(systemName: "arrow.clockwise")
                     }
@@ -46,6 +50,45 @@ struct SettingsView: View {
                     print("Import failed: \(error)")
                 }
             }
+        }
+    }
+
+    private var quoteSection: some View {
+        Section("每日名言") {
+            LabeledContent("名言总数", value: "\(quotes.quotes.count) 条")
+
+            if reminders.permission == .authorized {
+                Toggle("每天推送到锁屏", isOn: $reminders.isEnabled)
+
+                if reminders.isEnabled {
+                    DatePicker("早上", selection: $reminders.morning, displayedComponents: .hourAndMinute)
+                    DatePicker("晚上", selection: $reminders.evening, displayedComponents: .hourAndMinute)
+                }
+            } else if reminders.permission == .denied {
+                Text("通知权限被拒绝了。去「设置 → 通知 → Jo」重新允许。")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else {
+                Button("开启每日推送") {
+                    reminders.enable(using: quotes)
+                }
+                Text("每天早晚各推一条名言到锁屏，时间可以自己定。")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+
+            Text("想加自己的句子：在「文件」App → 我的 iPhone/iPad → Jo 里建一个 Quotes.txt，一行一句，出处写在 —— 后面。现在有 \(quotes.customCount) 条自己加的。")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+        .onChange(of: reminders.isEnabled) { _ in
+            reminders.reschedule(using: quotes)
+        }
+        .onChange(of: reminders.morning) { _ in
+            reminders.reschedule(using: quotes)
+        }
+        .onChange(of: reminders.evening) { _ in
+            reminders.reschedule(using: quotes)
         }
     }
 
