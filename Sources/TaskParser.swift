@@ -12,24 +12,24 @@ enum TaskParser {
     static let defaultMinutes = 30
 
     private static let bullet = try! NSRegularExpression(
-        pattern: "^\s*(?:[-*•·]|\d+[.、)）])\s*"
+        pattern: #"^\s*(?:[-*•·]|\d+[.、)）])\s*"#
     )
 
-    // Longer units first so "min" never wins over "mins". Bare "m" is left
-    // out on purpose: "跑步 5000m" is metres, not minutes.
+    // Longer units first so "min" never loses to "mins". Bare "m" is left out
+    // on purpose: "跑步 5000m" is metres, not minutes.
     private static let duration = try! NSRegularExpression(
-        pattern: "[（(\[]?\s*(\d+(?:\.\d+)?)\s*(个小时|個小時|小时|小時|hrs|hr|h|分钟|分鐘|分|mins|min)\s*[)）\]]?\s*$",
+        pattern: #"[（(\[]?\s*(\d+(?:\.\d+)?)\s*(个小时|個小時|小时|小時|hrs|hr|h|分钟|分鐘|分|mins|min)\s*[)）\]]?\s*$"#,
         options: [.caseInsensitive]
     )
 
     private static let hourUnits: Set<String> = ["个小时", "個小時", "小时", "小時", "h", "hr", "hrs"]
 
     static func parse(_ raw: String) -> [ParsedTask] {
-        raw.split(whereSeparator: \.isNewline).compactMap { line in
+        raw.split(whereSeparator: \.isNewline).compactMap { line -> ParsedTask? in
             var text = String(line).trimmingCharacters(in: .whitespaces)
             guard !text.isEmpty else { return nil }
 
-            text = replacingFirstMatch(bullet, in: text, with: "")
+            text = removingFirstMatch(bullet, in: text)
 
             var minutes = defaultMinutes
             let range = NSRange(text.startIndex..., in: text)
@@ -39,7 +39,7 @@ enum TaskParser {
                let value = Double(text[valueRange]),
                let whole = Range(match.range, in: text) {
                 minutes = self.minutes(value: value, unit: String(text[unitRange]))
-                text = String(text[..<whole.lowerBound]).trimmingCharacters(in: .whitespaces)
+                text = String(text[..<whole.lowerBound])
             }
 
             let cleaned = text.trimmingCharacters(in: CharacterSet(charactersIn: " ，,、-–—"))
@@ -54,11 +54,11 @@ enum TaskParser {
             : Int(value.rounded())
     }
 
-    private static func replacingFirstMatch(_ regex: NSRegularExpression, in text: String, with template: String) -> String {
+    private static func removingFirstMatch(_ regex: NSRegularExpression, in text: String) -> String {
         let range = NSRange(text.startIndex..., in: text)
-        guard let match = regex.firstMatch(in: text, range: range), let found = Range(match.range, in: text) else {
-            return text
-        }
-        return text.replacingCharacters(in: found, with: template)
+        guard let match = regex.firstMatch(in: text, range: range),
+              let found = Range(match.range, in: text)
+        else { return text }
+        return text.replacingCharacters(in: found, with: "")
     }
 }
