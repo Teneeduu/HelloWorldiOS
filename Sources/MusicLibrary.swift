@@ -1,5 +1,6 @@
 import Foundation
 import AVFoundation
+import MediaPlayer
 
 struct Track: Identifiable, Equatable {
     let id: String
@@ -21,7 +22,46 @@ final class MusicLibrary: NSObject, ObservableObject, AVAudioPlayerDelegate {
         super.init()
         try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
         try? AVAudioSession.sharedInstance().setActive(true)
+        setUpRemoteCommands()
         reload()
+    }
+
+    private func setUpRemoteCommands() {
+        let center = MPRemoteCommandCenter.shared()
+        center.playCommand.addTarget { [weak self] _ in
+            self?.play()
+            return .success
+        }
+        center.pauseCommand.addTarget { [weak self] _ in
+            self?.pause()
+            return .success
+        }
+        center.togglePlayPauseCommand.addTarget { [weak self] _ in
+            self?.toggle()
+            return .success
+        }
+        center.nextTrackCommand.addTarget { [weak self] _ in
+            self?.next()
+            return .success
+        }
+        center.previousTrackCommand.addTarget { [weak self] _ in
+            self?.previous()
+            return .success
+        }
+    }
+
+    private func updateNowPlaying() {
+        guard let track = currentTrack, let player else {
+            MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+            return
+        }
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = [
+            MPMediaItemPropertyTitle: track.title,
+            MPMediaItemPropertyArtist: "Jo",
+            MPMediaItemPropertyPlaybackDuration: player.duration,
+            MPNowPlayingInfoPropertyElapsedPlaybackTime: player.currentTime,
+            MPNowPlayingInfoPropertyPlaybackRate: player.isPlaying ? 1.0 : 0.0
+        ]
     }
 
     private var documentsURL: URL {
@@ -126,11 +166,13 @@ final class MusicLibrary: NSObject, ObservableObject, AVAudioPlayerDelegate {
         }
         player?.play()
         isPlaying = true
+        updateNowPlaying()
     }
 
     func pause() {
         player?.pause()
         isPlaying = false
+        updateNowPlaying()
     }
 
     func stop() {
@@ -138,6 +180,7 @@ final class MusicLibrary: NSObject, ObservableObject, AVAudioPlayerDelegate {
         player = nil
         isPlaying = false
         currentTrackID = nil
+        updateNowPlaying()
     }
 
     func toggle() {
@@ -149,10 +192,18 @@ final class MusicLibrary: NSObject, ObservableObject, AVAudioPlayerDelegate {
     }
 
     func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
-        advanceToNext()
+        next()
     }
 
-    private func advanceToNext() {
+    func next() {
+        step(by: 1)
+    }
+
+    func previous() {
+        step(by: -1)
+    }
+
+    private func step(by offset: Int) {
         guard !tracks.isEmpty else {
             stop()
             return
@@ -161,7 +212,7 @@ final class MusicLibrary: NSObject, ObservableObject, AVAudioPlayerDelegate {
             play(tracks.first)
             return
         }
-        let nextIndex = (index + 1) % tracks.count
-        play(tracks[nextIndex])
+        let target = (index + offset + tracks.count) % tracks.count
+        play(tracks[target])
     }
 }

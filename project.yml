@@ -14,7 +14,9 @@ targets:
     info:
       path: Info.plist
       properties:
-        CFBundleDisplayName: HelloWorld
+        CFBundleDisplayName: Jo
+        UIBackgroundModes:
+          - audio
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait

@@ -110,20 +110,36 @@ struct PlayerView: View {
                 .lineLimit(1)
                 .padding(.top, 12)
 
-            HStack(spacing: 36) {
+            HStack(spacing: 28) {
                 Button {
                     library.stop()
                 } label: {
                     Image(systemName: "stop.fill")
-                        .font(.title2)
+                        .font(.title3)
                 }
                 .disabled(library.currentTrackID == nil)
+
+                Button {
+                    library.previous()
+                } label: {
+                    Image(systemName: "backward.fill")
+                        .font(.title2)
+                }
+                .disabled(library.tracks.isEmpty)
 
                 Button {
                     library.toggle()
                 } label: {
                     Image(systemName: library.isPlaying ? "pause.circle.fill" : "play.circle.fill")
                         .font(.system(size: 52))
+                }
+                .disabled(library.tracks.isEmpty)
+
+                Button {
+                    library.next()
+                } label: {
+                    Image(systemName: "forward.fill")
+                        .font(.title2)
                 }
                 .disabled(library.tracks.isEmpty)
             }
