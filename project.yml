@@ -22,6 +22,7 @@ targets:
           - UIInterfaceOrientationPortrait
         UIFileSharingEnabled: true
         LSSupportsOpeningDocumentsInPlace: true
+        NSPhotoLibraryUsageDescription: Jo 会随机取你的照片当作背景，照片只在本机显示，不会上传到任何地方。
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.example.helloworld

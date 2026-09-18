@@ -81,14 +81,19 @@ jobs:
             -destination "generic/platform=iOS Simulator" \
             build
 
+      - name: Make sample photos for the simulator library
+        run: python3 scripts/make_sample_photos.py
+
       - name: Boot simulator, install app, take screenshot
         run: |
-          DEVICE_ID=$(xcrun simctl create "HelloWorld-Preview" "iPhone 16")
+          DEVICE_ID=$(xcrun simctl create "Jo-Preview" "iPhone 16")
           xcrun simctl boot "$DEVICE_ID"
           xcrun simctl bootstatus "$DEVICE_ID" -b
+          xcrun simctl addmedia "$DEVICE_ID" sample1.png sample2.png sample3.png
           xcrun simctl install "$DEVICE_ID" build/Build/Products/Debug-iphonesimulator/HelloWorld.app
+          xcrun simctl privacy "$DEVICE_ID" grant photos com.example.helloworld
           xcrun simctl launch "$DEVICE_ID" com.example.helloworld
-          sleep 3
+          sleep 6
           xcrun simctl io "$DEVICE_ID" screenshot screenshot.png
 
       - name: Upload screenshot
