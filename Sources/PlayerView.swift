@@ -82,12 +82,17 @@ struct PlayerView: View {
     }
 
     private var computerUploadHint: some View {
-        DisclosureGroup("从电脑上传歌曲") {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("1. 手机连电脑（数据线，或配好 AltServer 后同一 WiFi）")
-                Text("2. 电脑上打开 Finder / iTunes / “Apple 设备”App，找到 HelloWorld 这个 App 的文件共享")
-                Text("3. 把 mp3 / m4a / wav 文件直接拖进去")
-                Text("4. 回到这里点右上角 ↻ 刷新，新歌就会出现在下面的列表里")
+        DisclosureGroup("还能怎么加歌") {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("用「文件」App 直接放进来")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.primary)
+                Text("打开系统的「文件」App → 我的 iPhone/iPad → HelloWorld，把 mp3 粘贴进这个文件夹，回来点右上角 ↻ 刷新即可。歌可以先用网盘、微信、隔空投送从电脑传到手机。")
+
+                Text("从电脑直接拖（需要装 iMazing）")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.primary)
+                Text("电脑装 iMazing，用数据线连手机，找到 HelloWorld 的文件夹把歌拖进去。Windows 版 iTunes 从 12.7 起已经没有「文件共享」功能了，用不了。")
             }
             .font(.footnote)
             .foregroundStyle(.secondary)

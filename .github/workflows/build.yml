@@ -8,6 +8,8 @@ on:
 jobs:
   build:
     runs-on: macos-15
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -43,6 +45,16 @@ jobs:
         with:
           name: HelloWorld-unsigned-ipa
           path: HelloWorld-unsigned.ipa
+
+      - name: Publish release
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "build-${{ github.run_number }}" HelloWorld-unsigned.ipa \
+            --title "HelloWorld build ${{ github.run_number }}" \
+            --notes "未签名 ipa，用 AltStore / Sideloadly 自签后安装。commit: ${{ github.sha }}" \
+            --latest
 
   simulator-screenshot:
     runs-on: macos-15
