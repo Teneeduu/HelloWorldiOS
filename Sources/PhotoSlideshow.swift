@@ -1,11 +1,10 @@
 import SwiftUI
 import Photos
 
-@MainActor
 final class PhotoSlideshow: ObservableObject {
     @Published private(set) var image: UIImage?
     @Published private(set) var generation = 0
-    @Published private(set) var status = PHPhotoLibrary.authorizationStatus(for: .readOnly)
+    @Published private(set) var status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
     @Published private(set) var photoCount = 0
 
     @Published var isEnabled: Bool {
@@ -25,7 +24,7 @@ final class PhotoSlideshow: ObservableObject {
     private static let enabledKey = "slideshow.enabled"
     private static let intervalKey = "slideshow.interval"
 
-    private var assets: [PHAsset] = []
+    private var assets: PHFetchResult<PHAsset>?
     private var timer: Timer?
 
     var hasAccess: Bool {
@@ -34,8 +33,8 @@ final class PhotoSlideshow: ObservableObject {
 
     init() {
         let granted = [PHAuthorizationStatus.authorized, .limited]
-            .contains(PHPhotoLibrary.authorizationStatus(for: .readOnly))
-        // No stored choice yet means the user has never touched the switch:
+            .contains(PHPhotoLibrary.authorizationStatus(for: .readWrite))
+        // No stored choice means the user has never touched the switch:
         // default it on when access already exists, off otherwise.
         isEnabled = UserDefaults.standard.object(forKey: Self.enabledKey) as? Bool ?? granted
         let saved = UserDefaults.standard.double(forKey: Self.intervalKey)
@@ -46,14 +45,13 @@ final class PhotoSlideshow: ObservableObject {
     }
 
     func requestAccess() {
-        PHPhotoLibrary.requestAuthorization(for: .readOnly) { [weak self] newStatus in
-            Task { @MainActor in
+        PHPhotoLibrary.requestAuthorization(for: .readWrite) { [weak self] newStatus in
+            DispatchQueue.main.async {
                 guard let self else { return }
                 self.status = newStatus
-                if self.hasAccess {
-                    self.isEnabled = true
-                    self.loadAssets()
-                }
+                guard self.hasAccess else { return }
+                self.isEnabled = true
+                self.loadAssets()
             }
         }
     }
@@ -62,19 +60,17 @@ final class PhotoSlideshow: ObservableObject {
         let options = PHFetchOptions()
         options.predicate = NSPredicate(format: "mediaType == %d", PHAssetMediaType.image.rawValue)
         let result = PHAsset.fetchAssets(with: options)
-        var found: [PHAsset] = []
-        result.enumerateObjects { asset, _, _ in found.append(asset) }
-        assets = found
-        photoCount = found.count
+        assets = result
+        photoCount = result.count
         if isEnabled { start() }
     }
 
     private func start() {
         stop()
-        guard hasAccess, !assets.isEmpty else { return }
+        guard hasAccess, let assets, assets.count > 0 else { return }
         if image == nil { showRandomPhoto() }
         timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.showRandomPhoto() }
+            self?.showRandomPhoto()
         }
     }
 
@@ -84,7 +80,9 @@ final class PhotoSlideshow: ObservableObject {
     }
 
     private func showRandomPhoto() {
-        guard let asset = assets.randomElement() else { return }
+        guard let assets, assets.count > 0 else { return }
+        let asset = assets.object(at: Int.random(in: 0..<assets.count))
+
         let options = PHImageRequestOptions()
         options.deliveryMode = .highQualityFormat
         options.resizeMode = .fast
@@ -98,7 +96,7 @@ final class PhotoSlideshow: ObservableObject {
         ) { [weak self] loaded, info in
             guard let loaded else { return }
             let isDegraded = (info?[PHImageResultIsDegradedKey] as? Bool) ?? false
-            Task { @MainActor in
+            DispatchQueue.main.async {
                 guard let self else { return }
                 withAnimation(.easeInOut(duration: 1.4)) {
                     self.image = loaded
