@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import UniformTypeIdentifiers
 
 struct SettingsView: View {
@@ -6,6 +7,7 @@ struct SettingsView: View {
     @ObservedObject var slideshow: PhotoSlideshow
     @ObservedObject var quotes: QuoteLibrary
     @ObservedObject var reminders: QuoteReminders
+    @StateObject private var updates = UpdateChecker()
     @State private var isImporting = false
 
     var body: some View {
@@ -16,6 +18,7 @@ struct SettingsView: View {
                     photoSection
                     trackSection
                     helpSection
+                    aboutSection
                 }
                 controls
             }
@@ -50,6 +53,55 @@ struct SettingsView: View {
                     print("Import failed: \(error)")
                 }
             }
+        }
+    }
+
+    private var aboutSection: some View {
+        Section("关于 Jo") {
+            LabeledContent("当前版本", value: "build \(updates.currentBuild)")
+
+            Button {
+                updates.check()
+            } label: {
+                HStack {
+                    Text("检查更新")
+                    if updates.state == .checking {
+                        Spacer()
+                        ProgressView()
+                    }
+                }
+            }
+            .disabled(updates.state == .checking)
+
+            updateStatus
+
+            Button("复制 AltStore 源地址") {
+                UIPasteboard.general.string = UpdateChecker.sourceURL
+            }
+
+            Text("在 AltStore 里添加这个源，以后有新版本就能直接在手机上点「更新」装好，不用数据线。前提是电脑的 AltServer 开着、和手机在同一个 WiFi —— 重新签名必须用电脑上的证书。")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    @ViewBuilder
+    private var updateStatus: some View {
+        switch updates.state {
+        case .idle, .checking:
+            EmptyView()
+        case .upToDate:
+            Label("已经是最新版本", systemImage: "checkmark.circle")
+                .font(.footnote)
+                .foregroundStyle(.green)
+        case .available(let build):
+            Label("有新版本：build \(build)，去 AltStore 点更新", systemImage: "arrow.down.circle")
+                .font(.footnote)
+                .foregroundStyle(Color.accentColor)
+        case .failed(let message):
+            Label("检查失败：\(message)", systemImage: "exclamationmark.triangle")
+                .font(.footnote)
+                .foregroundStyle(.orange)
         }
     }
 

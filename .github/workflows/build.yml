@@ -30,6 +30,8 @@ jobs:
             -configuration Release \
             -sdk iphoneos \
             -derivedDataPath build \
+            MARKETING_VERSION=1.0.${{ github.run_number }} \
+            CURRENT_PROJECT_VERSION=${{ github.run_number }} \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
             build
@@ -39,6 +41,9 @@ jobs:
           mkdir -p Payload
           cp -r build/Build/Products/Release-iphoneos/HelloWorld.app Payload/
           zip -r HelloWorld-unsigned.ipa Payload
+
+      - name: Write AltStore source manifest
+        run: python3 scripts/make_altstore_source.py "${{ github.run_number }}" HelloWorld-unsigned.ipa source.json
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -51,7 +56,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "build-${{ github.run_number }}" HelloWorld-unsigned.ipa \
+          gh release create "build-${{ github.run_number }}" HelloWorld-unsigned.ipa source.json \
             --title "HelloWorld build ${{ github.run_number }}" \
             --notes "未签名 ipa，用 AltStore / Sideloadly 自签后安装。commit: ${{ github.sha }}" \
             --latest
