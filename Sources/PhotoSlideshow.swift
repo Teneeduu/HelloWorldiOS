@@ -42,6 +42,7 @@ final class PhotoSlideshow: ObservableObject {
         if hasAccess {
             loadAssets()
         }
+        print("[Jo] init status=\(status.rawValue) hasAccess=\(hasAccess) enabled=\(isEnabled) photos=\(photoCount)")
     }
 
     func requestAccess() {
@@ -67,6 +68,7 @@ final class PhotoSlideshow: ObservableObject {
 
     private func start() {
         stop()
+        print("[Jo] start hasAccess=\(hasAccess) assets=\(assets?.count ?? -1)")
         guard hasAccess, let assets, assets.count > 0 else { return }
         if image == nil { showRandomPhoto() }
         timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
@@ -94,7 +96,10 @@ final class PhotoSlideshow: ObservableObject {
             contentMode: .aspectFill,
             options: options
         ) { [weak self] loaded, info in
-            guard let loaded else { return }
+            guard let loaded else {
+                print("[Jo] image request returned nil: \(String(describing: info))")
+                return
+            }
             let isDegraded = (info?[PHImageResultIsDegradedKey] as? Bool) ?? false
             DispatchQueue.main.async {
                 guard let self else { return }

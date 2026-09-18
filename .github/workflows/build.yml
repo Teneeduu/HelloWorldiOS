@@ -92,9 +92,13 @@ jobs:
           xcrun simctl addmedia "$DEVICE_ID" sample1.png sample2.png sample3.png
           xcrun simctl install "$DEVICE_ID" build/Build/Products/Debug-iphonesimulator/HelloWorld.app
           xcrun simctl privacy "$DEVICE_ID" grant photos com.example.helloworld
-          xcrun simctl launch "$DEVICE_ID" com.example.helloworld
-          sleep 6
+          xcrun simctl launch --console-pty "$DEVICE_ID" com.example.helloworld > app.log 2>&1 &
+          sleep 15
           xcrun simctl io "$DEVICE_ID" screenshot screenshot.png
+          echo "--- app console ---"
+          cat app.log || true
+          echo "--- photo assets on device ---"
+          xcrun simctl spawn "$DEVICE_ID" log show --last 2m --predicate 'process == "HelloWorld"' --style compact 2>/dev/null | tail -30 || true
 
       - name: Upload screenshot
         uses: actions/upload-artifact@v4
