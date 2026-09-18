@@ -3,10 +3,12 @@ import SwiftUI
 struct ContentView: View {
     @State private var animate = false
     @State private var showSettings = false
+    @State private var showPlanner = false
     @StateObject private var library = MusicLibrary()
     @StateObject private var slideshow = PhotoSlideshow()
     @StateObject private var quotes = QuoteLibrary()
     @StateObject private var reminders = QuoteReminders()
+    @StateObject private var plan = PlanStore()
 
     private let rainbow: [Color] = [.pink, .purple, .indigo, .blue, .cyan, .green, .yellow, .orange, .red, .pink]
 
@@ -19,7 +21,12 @@ struct ContentView: View {
                 greeting
                 quoteLine
                 Spacer()
-                playButton
+
+                HStack(spacing: 12) {
+                    planButton
+                    playButton
+                }
+                .padding(.bottom, 48)
             }
 
             settingsButton
@@ -32,6 +39,9 @@ struct ContentView: View {
         }
         .onChange(of: slideshow.generation) { _ in
             quotes.shuffle()
+        }
+        .sheet(isPresented: $showPlanner) {
+            PlannerView(store: plan)
         }
         .sheet(isPresented: $showSettings) {
             SettingsView(library: library, slideshow: slideshow, quotes: quotes, reminders: reminders)
@@ -106,18 +116,33 @@ struct ContentView: View {
         }
     }
 
+    private var planButton: some View {
+        Button {
+            showPlanner = true
+        } label: {
+            Label(planLabel, systemImage: "checklist")
+                .padding(.horizontal, 18)
+                .padding(.vertical, 12)
+                .background(.ultraThinMaterial, in: Capsule())
+        }
+        .foregroundStyle(.white)
+    }
+
+    private var planLabel: String {
+        plan.todayTasks.isEmpty ? "今日计划" : "今天 \(plan.todayDone)/\(plan.todayTasks.count)"
+    }
+
     private var playButton: some View {
         Button {
             library.toggle()
         } label: {
             Label(library.isPlaying ? "正在播放" : "播放音乐", systemImage: library.isPlaying ? "waveform" : "music.note")
-                .padding(.horizontal, 20)
+                .padding(.horizontal, 18)
                 .padding(.vertical, 12)
                 .background(.ultraThinMaterial, in: Capsule())
         }
         .foregroundStyle(.white)
         .disabled(library.tracks.isEmpty)
-        .padding(.bottom, 48)
     }
 
     private var settingsButton: some View {

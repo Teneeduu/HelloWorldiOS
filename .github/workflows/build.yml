@@ -81,8 +81,10 @@ jobs:
             -destination "generic/platform=iOS Simulator" \
             build
 
-      - name: Make sample photos for the simulator library
-        run: python3 scripts/make_sample_photos.py
+      - name: Make sample photos and a sample plan
+        run: |
+          python3 scripts/make_sample_photos.py
+          python3 scripts/make_sample_plan.py
 
       - name: Boot simulator, install app, take screenshot
         run: |
@@ -95,6 +97,7 @@ jobs:
           APP_DATA=$(xcrun simctl get_app_container "$DEVICE_ID" com.example.helloworld data)
           mkdir -p "$APP_DATA/Documents/Photos"
           cp sample1.png sample2.png sample3.png "$APP_DATA/Documents/Photos/"
+          cp sample-plan.json "$APP_DATA/Documents/plan.json"
           xcrun simctl launch "$DEVICE_ID" com.example.helloworld
           sleep 8
           xcrun simctl io "$DEVICE_ID" screenshot screenshot.png
