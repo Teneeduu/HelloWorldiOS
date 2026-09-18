@@ -92,6 +92,10 @@ jobs:
           xcrun simctl addmedia "$DEVICE_ID" sample1.png sample2.png sample3.png
           xcrun simctl install "$DEVICE_ID" build/Build/Products/Debug-iphonesimulator/HelloWorld.app
           xcrun simctl privacy "$DEVICE_ID" grant photos com.example.helloworld
+          # TCC changes are only picked up after the runtime restarts.
+          xcrun simctl shutdown "$DEVICE_ID"
+          xcrun simctl boot "$DEVICE_ID"
+          xcrun simctl bootstatus "$DEVICE_ID" -b
           xcrun simctl launch --console-pty "$DEVICE_ID" com.example.helloworld > app.log 2>&1 &
           sleep 15
           xcrun simctl io "$DEVICE_ID" screenshot screenshot.png
