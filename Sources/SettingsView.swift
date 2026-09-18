@@ -29,6 +29,7 @@ struct SettingsView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         library.refresh()
+                        slideshow.refresh()
                     } label: {
                         Image(systemName: "arrow.clockwise")
                     }
@@ -50,35 +51,37 @@ struct SettingsView: View {
 
     private var photoSection: some View {
         Section("背景照片") {
-            if slideshow.hasAccess {
-                Toggle("用照片当背景", isOn: $slideshow.isEnabled)
+            Toggle("用照片当背景", isOn: $slideshow.isEnabled)
 
-                Picker("多久换一张", selection: $slideshow.interval) {
-                    Text("15 秒").tag(15.0)
-                    Text("30 秒").tag(30.0)
-                    Text("1 分钟").tag(60.0)
-                    Text("5 分钟").tag(300.0)
-                }
+            Picker("多久换一张", selection: $slideshow.interval) {
+                Text("15 秒").tag(15.0)
+                Text("30 秒").tag(30.0)
+                Text("1 分钟").tag(60.0)
+                Text("5 分钟").tag(300.0)
+            }
 
-                LabeledContent("可用照片", value: "\(slideshow.photoCount) 张")
+            LabeledContent("相册里的照片", value: slideshow.hasAccess ? "\(slideshow.libraryCount) 张" : "未授权")
+            LabeledContent("Jo 文件夹里的照片", value: "\(slideshow.folderCount) 张")
 
-                if slideshow.status == .limited {
-                    Text("现在只授权了部分照片。想让它从整个相册抽，去「设置 → 隐私与安全性 → 照片 → Jo」改成完全访问。")
+            if !slideshow.hasAccess {
+                if slideshow.status == .denied || slideshow.status == .restricted {
+                    Text("相册权限被拒绝了。去「设置 → 隐私与安全性 → 照片 → Jo」重新允许。")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
+                } else {
+                    Button("允许访问相册") {
+                        slideshow.requestAccess()
+                    }
                 }
-            } else if slideshow.status == .denied || slideshow.status == .restricted {
-                Text("相册权限被拒绝了。去「设置 → 隐私与安全性 → 照片 → Jo」重新允许，回来这里就能打开。")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            } else {
-                Button("允许访问相册") {
-                    slideshow.requestAccess()
-                }
-                Text("打开后会从相册里随机抽照片当背景，隔一会儿换一张。照片只在本机显示，不会上传。")
+            } else if slideshow.status == .limited {
+                Text("现在只授权了部分照片。想让它从整个相册抽，去「设置 → 隐私与安全性 → 照片 → Jo」改成完全访问。")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
+
+            Text("不想给相册权限也行：打开「文件」App → 我的 iPhone/iPad → Jo → Photos，把图片放进去，点右上角 ↻ 刷新即可。")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
         }
     }
 

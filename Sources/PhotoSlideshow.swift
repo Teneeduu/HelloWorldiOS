@@ -1,11 +1,15 @@
 import SwiftUI
 import Photos
 
+/// Background photos come from two places: the system photo library (needs
+/// permission) and a `Photos` folder inside the app's own documents, which the
+/// user can fill through the Files app without granting anything.
 final class PhotoSlideshow: ObservableObject {
     @Published private(set) var image: UIImage?
     @Published private(set) var generation = 0
     @Published private(set) var status = PHPhotoLibrary.authorizationStatus(for: .readWrite)
-    @Published private(set) var photoCount = 0
+    @Published private(set) var libraryCount = 0
+    @Published private(set) var folderCount = 0
 
     @Published var isEnabled: Bool {
         didSet {
@@ -23,26 +27,38 @@ final class PhotoSlideshow: ObservableObject {
 
     private static let enabledKey = "slideshow.enabled"
     private static let intervalKey = "slideshow.interval"
+    private static let imageExtensions = ["jpg", "jpeg", "png", "heic"]
 
     private var assets: PHFetchResult<PHAsset>?
+    private var folderPhotos: [URL] = []
     private var timer: Timer?
+
+    private enum Source {
+        case library(PHAsset)
+        case file(URL)
+    }
 
     var hasAccess: Bool {
         status == .authorized || status == .limited
     }
 
+    var photoCount: Int {
+        libraryCount + folderCount
+    }
+
+    var photosFolder: URL {
+        let documents = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        return documents.appendingPathComponent("Photos", isDirectory: true)
+    }
+
     init() {
-        let granted = [PHAuthorizationStatus.authorized, .limited]
-            .contains(PHPhotoLibrary.authorizationStatus(for: .readWrite))
-        // No stored choice means the user has never touched the switch:
-        // default it on when access already exists, off otherwise.
-        isEnabled = UserDefaults.standard.object(forKey: Self.enabledKey) as? Bool ?? granted
+        // No stored choice means the user has never touched the switch, so let
+        // the switch follow whether there is anything to show.
+        isEnabled = UserDefaults.standard.object(forKey: Self.enabledKey) as? Bool ?? true
         let saved = UserDefaults.standard.double(forKey: Self.intervalKey)
         interval = saved > 0 ? saved : 30
-        if hasAccess {
-            loadAssets()
-        }
-        print("[Jo] init status=\(status.rawValue) hasAccess=\(hasAccess) enabled=\(isEnabled) photos=\(photoCount)")
+        try? FileManager.default.createDirectory(at: photosFolder, withIntermediateDirectories: true)
+        refresh()
     }
 
     func requestAccess() {
@@ -50,26 +66,34 @@ final class PhotoSlideshow: ObservableObject {
             DispatchQueue.main.async {
                 guard let self else { return }
                 self.status = newStatus
-                guard self.hasAccess else { return }
                 self.isEnabled = true
-                self.loadAssets()
+                self.refresh()
             }
         }
     }
 
-    private func loadAssets() {
-        let options = PHFetchOptions()
-        options.predicate = NSPredicate(format: "mediaType == %d", PHAssetMediaType.image.rawValue)
-        let result = PHAsset.fetchAssets(with: options)
-        assets = result
-        photoCount = result.count
+    func refresh() {
+        if hasAccess {
+            let options = PHFetchOptions()
+            options.predicate = NSPredicate(format: "mediaType == %d", PHAssetMediaType.image.rawValue)
+            let result = PHAsset.fetchAssets(with: options)
+            assets = result
+            libraryCount = result.count
+        } else {
+            assets = nil
+            libraryCount = 0
+        }
+
+        let contents = (try? FileManager.default.contentsOfDirectory(at: photosFolder, includingPropertiesForKeys: nil)) ?? []
+        folderPhotos = contents.filter { Self.imageExtensions.contains($0.pathExtension.lowercased()) }
+        folderCount = folderPhotos.count
+
         if isEnabled { start() }
     }
 
     private func start() {
         stop()
-        print("[Jo] start hasAccess=\(hasAccess) assets=\(assets?.count ?? -1)")
-        guard hasAccess, let assets, assets.count > 0 else { return }
+        guard photoCount > 0 else { return }
         if image == nil { showRandomPhoto() }
         timer = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
             self?.showRandomPhoto()
@@ -81,33 +105,49 @@ final class PhotoSlideshow: ObservableObject {
         timer = nil
     }
 
+    private func randomSource() -> Source? {
+        guard photoCount > 0 else { return nil }
+        let pick = Int.random(in: 0..<photoCount)
+        if pick < libraryCount, let assets {
+            return .library(assets.object(at: pick))
+        }
+        return .file(folderPhotos[pick - libraryCount])
+    }
+
     private func showRandomPhoto() {
-        guard let assets, assets.count > 0 else { return }
-        let asset = assets.object(at: Int.random(in: 0..<assets.count))
-
-        let options = PHImageRequestOptions()
-        options.deliveryMode = .highQualityFormat
-        options.resizeMode = .fast
-        options.isNetworkAccessAllowed = true
-
-        PHImageManager.default().requestImage(
-            for: asset,
-            targetSize: CGSize(width: 1400, height: 2800),
-            contentMode: .aspectFill,
-            options: options
-        ) { [weak self] loaded, info in
-            guard let loaded else {
-                print("[Jo] image request returned nil: \(String(describing: info))")
-                return
+        switch randomSource() {
+        case .file(let url):
+            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                guard let data = try? Data(contentsOf: url), let loaded = UIImage(data: data) else { return }
+                DispatchQueue.main.async { self?.apply(loaded) }
             }
-            let isDegraded = (info?[PHImageResultIsDegradedKey] as? Bool) ?? false
-            DispatchQueue.main.async {
-                guard let self else { return }
-                withAnimation(.easeInOut(duration: 1.4)) {
-                    self.image = loaded
-                    if !isDegraded { self.generation += 1 }
-                }
+
+        case .library(let asset):
+            let options = PHImageRequestOptions()
+            options.deliveryMode = .highQualityFormat
+            options.resizeMode = .fast
+            options.isNetworkAccessAllowed = true
+
+            PHImageManager.default().requestImage(
+                for: asset,
+                targetSize: CGSize(width: 1400, height: 2800),
+                contentMode: .aspectFill,
+                options: options
+            ) { [weak self] loaded, info in
+                guard let loaded else { return }
+                let isDegraded = (info?[PHImageResultIsDegradedKey] as? Bool) ?? false
+                DispatchQueue.main.async { self?.apply(loaded, countsAsNew: !isDegraded) }
             }
+
+        case nil:
+            return
+        }
+    }
+
+    private func apply(_ loaded: UIImage, countsAsNew: Bool = true) {
+        withAnimation(.easeInOut(duration: 1.4)) {
+            image = loaded
+            if countsAsNew { generation += 1 }
         }
     }
 }
