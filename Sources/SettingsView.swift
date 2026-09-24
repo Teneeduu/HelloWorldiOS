@@ -144,6 +144,11 @@ struct SettingsView: View {
         }
     }
 
+    private var libraryCountLabel: String {
+        if slideshow.folderOnly { return "已关闭" }
+        return slideshow.hasAccess ? "\(slideshow.libraryCount) 张" : "未授权"
+    }
+
     private var photoSection: some View {
         Section("背景照片") {
             Toggle("用照片当背景", isOn: $slideshow.isEnabled)
@@ -155,10 +160,16 @@ struct SettingsView: View {
                 Text("5 分钟").tag(300.0)
             }
 
-            LabeledContent("相册里的照片", value: slideshow.hasAccess ? "\(slideshow.libraryCount) 张" : "未授权")
+            Toggle("只用 Jo 文件夹里的照片", isOn: $slideshow.folderOnly)
+
+            LabeledContent("相册里的照片", value: libraryCountLabel)
             LabeledContent("Jo 文件夹里的照片", value: "\(slideshow.folderCount) 张")
 
-            if !slideshow.hasAccess {
+            if slideshow.folderOnly {
+                Text("现在完全不读系统相册，只显示你放进 Jo 文件夹的图片。")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else if !slideshow.hasAccess {
                 if slideshow.status == .denied || slideshow.status == .restricted {
                     Text("相册权限被拒绝了。去「设置 → 隐私与安全性 → 照片 → Jo」重新允许。")
                         .font(.footnote)

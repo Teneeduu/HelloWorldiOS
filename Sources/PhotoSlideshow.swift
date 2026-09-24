@@ -18,6 +18,15 @@ final class PhotoSlideshow: ObservableObject {
         }
     }
 
+    /// When on, the system photo library is never touched — only images the
+    /// user put into Jo's own Photos folder are shown.
+    @Published var folderOnly: Bool {
+        didSet {
+            UserDefaults.standard.set(folderOnly, forKey: Self.folderOnlyKey)
+            refresh()
+        }
+    }
+
     @Published var interval: TimeInterval {
         didSet {
             UserDefaults.standard.set(interval, forKey: Self.intervalKey)
@@ -27,6 +36,7 @@ final class PhotoSlideshow: ObservableObject {
 
     private static let enabledKey = "slideshow.enabled"
     private static let intervalKey = "slideshow.interval"
+    private static let folderOnlyKey = "slideshow.folderOnly"
     private static let imageExtensions = ["jpg", "jpeg", "png", "heic"]
 
     private var assets: PHFetchResult<PHAsset>?
@@ -55,6 +65,7 @@ final class PhotoSlideshow: ObservableObject {
         // No stored choice means the user has never touched the switch, so let
         // the switch follow whether there is anything to show.
         isEnabled = UserDefaults.standard.object(forKey: Self.enabledKey) as? Bool ?? true
+        folderOnly = UserDefaults.standard.bool(forKey: Self.folderOnlyKey)
         let saved = UserDefaults.standard.double(forKey: Self.intervalKey)
         interval = saved > 0 ? saved : 30
         try? FileManager.default.createDirectory(at: photosFolder, withIntermediateDirectories: true)
@@ -73,7 +84,7 @@ final class PhotoSlideshow: ObservableObject {
     }
 
     func refresh() {
-        if hasAccess {
+        if hasAccess && !folderOnly {
             let options = PHFetchOptions()
             options.predicate = NSPredicate(format: "mediaType == %d", PHAssetMediaType.image.rawValue)
             let result = PHAsset.fetchAssets(with: options)

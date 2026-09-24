@@ -1,12 +1,5 @@
 import Foundation
 
-struct Quote: Identifiable, Decodable, Equatable {
-    let text: String
-    let source: String
-
-    var id: String { text }
-}
-
 /// Quotes ship inside the app, and the user can add their own by dropping a
 /// `Quotes.txt` into the app's folder — one per line, `句子 —— 出处`.
 final class QuoteLibrary: ObservableObject {
@@ -27,7 +20,7 @@ final class QuoteLibrary: ObservableObject {
     func reload() {
         let custom = loadCustom()
         customCount = custom.count
-        quotes = loadBundled() + custom
+        quotes = BundledQuotes.load() + custom
         current = quoteOfTheDay()
     }
 
@@ -47,19 +40,8 @@ final class QuoteLibrary: ObservableObject {
         quotes.randomElement()
     }
 
-    /// Stable for a given calendar day so the app opens on the same line all day.
     func quoteOfTheDay() -> Quote? {
-        guard !quotes.isEmpty else { return nil }
-        let day = Calendar.current.ordinality(of: .day, in: .era, for: Date()) ?? 0
-        return quotes[day % quotes.count]
-    }
-
-    private func loadBundled() -> [Quote] {
-        guard let url = Bundle.main.url(forResource: "quotes", withExtension: "json"),
-              let data = try? Data(contentsOf: url),
-              let decoded = try? JSONDecoder().decode([Quote].self, from: data)
-        else { return [] }
-        return decoded
+        BundledQuotes.ofTheDay(quotes)
     }
 
     private func loadCustom() -> [Quote] {
