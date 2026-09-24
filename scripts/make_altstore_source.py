@@ -5,7 +5,9 @@ Usage: make_altstore_source.py <build_number> <ipa_path> <output_path>
 
 import json
 import os
+import plistlib
 import sys
+import zipfile
 from datetime import date
 
 REPO = "Teneeduu/HelloWorldiOS"
@@ -18,6 +20,21 @@ ICON_URL = (
 build = sys.argv[1]
 ipa_path = sys.argv[2]
 out_path = sys.argv[3]
+
+
+def versions_from(ipa):
+    """Read the versions out of the built binary.
+
+    AltStore refuses to install when the manifest and the ipa disagree, so the
+    ipa is the single source of truth rather than the CI run number.
+    """
+    with zipfile.ZipFile(ipa) as archive:
+        name = next(n for n in archive.namelist() if n.endswith(".app/Info.plist"))
+        info = plistlib.loads(archive.read(name))
+    return info["CFBundleShortVersionString"], info["CFBundleVersion"]
+
+
+marketing_version, build_version = versions_from(ipa_path)
 
 description = (
     "Jo 是一个自用的个人助手：彩色的 Hello world 主屏、相册幻灯片背景、"
@@ -44,10 +61,10 @@ source = {
             "screenshotURLs": [],
             "versions": [
                 {
-                    "version": f"1.0.{build}",
-                    "buildVersion": build,
+                    "version": marketing_version,
+                    "buildVersion": build_version,
                     "date": date.today().isoformat(),
-                    "localizedDescription": f"build {build}",
+                    "localizedDescription": f"build {build_version}",
                     "downloadURL": (
                         f"https://github.com/{REPO}/releases/download/"
                         f"build-{build}/HelloWorld-unsigned.ipa"
